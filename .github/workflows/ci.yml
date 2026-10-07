@@ -16,7 +16,7 @@ env:
 jobs:
   test:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,7 +29,7 @@ jobs:
   build-scan-push:
     name: Build, scan, push
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -43,12 +43,14 @@ jobs:
             -t $IMAGE_NAME:${{ github.sha }} .
 
       - name: Trivy scan (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/aquasecurity/trivy:0.69.3 image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            $IMAGE_NAME:${{ github.sha }}
 
       - name: Login to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
